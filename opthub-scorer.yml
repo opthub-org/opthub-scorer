@@ -1,0 +1,12 @@
+###############################################################################
+# OptHub Scorer configration file
+#
+# This file determines the default arguments for opthub-scorer commands.
+###############################################################################
+
+url: https://opthub-api.herokuapp.com/v1/graphql
+apikey: key
+interval: 2
+verify: true
+retries: 2
+timeout: 60
