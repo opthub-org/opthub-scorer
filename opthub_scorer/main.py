@@ -9,12 +9,11 @@ from time import sleep
 from traceback import format_exc
 
 import click
-from click.types import StringParamType
 import docker
-from gql import gql, Client
-from gql.transport.requests import RequestsHTTPTransport
 import yaml
-
+from click.types import StringParamType
+from gql import Client, gql
+from gql.transport.requests import RequestsHTTPTransport
 
 _logger = logging.getLogger(__name__)
 
