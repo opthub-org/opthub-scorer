@@ -12,11 +12,6 @@ See also [requirements.txt](requirements.txt) for dependent python packages.
 $ pip install opthub-scorer
 ```
 
-If you need a development snapshot, you can install it from the repository:
-```
-$ pip install git+https://gitlab.com/ec-competition/opthub-scorer.git
-```
-
 ## Usage
 ### How to start a scorer runner
 Login the docker registry where the problem image is stored.
