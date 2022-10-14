@@ -29,15 +29,16 @@ class AliasedGroup(click.Group):
     ...     pass
     """
 
-    def get_command(self, ctx, cmd_name):
-        rv = click.Group.get_command(self, ctx, cmd_name)
-        if rv is not None:
-            return rv
-        matches = [x for x in self.list_commands(ctx)
-                   if x.startswith(cmd_name)]
+    def get_command(
+        self, ctx, cmd_name
+    ):  # pylint: disable=inconsistent-return-statements
+        cmd = click.Group.get_command(self, ctx, cmd_name)
+        if cmd is not None:
+            return cmd
+        matches = [cmd for cmd in self.list_commands(ctx) if cmd.startswith(cmd_name)]
         if not matches:
             return None
-        elif len(matches) == 1:
+        if len(matches) == 1:
             return click.Group.get_command(self, ctx, matches[0])
         ctx.fail("Too many matches: %s" % ", ".join(sorted(matches)))
 
@@ -53,40 +54,55 @@ class StrLength(StringParamType):
     :param clamp: Clamp the input if exeeded
     """
 
-    def __init__(self, min=None, max=None, clamp=False):
+    def __init__(
+        self, min=None, max=None, clamp=False
+    ):  # pylint: disable=redefined-builtin
         self.min = min
         self.max = max
         self.clamp = clamp
 
     def convert(self, value, param, ctx):
-        rv = StringParamType.convert(self, value, param, ctx)
-        l = len(rv)
+        ret = StringParamType.convert(self, value, param, ctx)
+        len_ret = len(ret)
         if self.clamp:
-            if self.min is not None and l < self.min:
-                return rv + " " * (self.min - l)
-            if self.max is not None and l > self.max:
-                return rv[:self.max]
-        if self.min is not None and l < self.min or \
-           self.max is not None and l > self.max:
+            if self.min is not None and len_ret < self.min:
+                return ret + " " * (self.min - len_ret)
+            if self.max is not None and len_ret > self.max:
+                return ret[: self.max]
+        if (
+            self.min is not None
+            and len_ret < self.min
+            or self.max is not None
+            and len_ret > self.max
+        ):
             if self.min is None:
                 self.fail(
                     "Length %d is longer than the maximum valid length %d."
-                    % (l, self.max), param, ctx)
+                    % (len_ret, self.max),
+                    param,
+                    ctx,
+                )
             elif self.max is None:
                 self.fail(
                     "Length %d is shorter than the minimum valid length %d."
-                    % (l, self.min), param, ctx)
+                    % (len_ret, self.min),
+                    param,
+                    ctx,
+                )
             else:
                 self.fail(
                     "Length %d is not in the valid range of %d to %d."
-                    % (l, self.min, self.max), param, ctx)
-        return rv
+                    % (len_ret, self.min, self.max),
+                    param,
+                    ctx,
+                )
+        return ret
 
     def __repr__(self):
         return "StrLength(%d, %d)" % (self.min, self.max)
 
 
-def load_config(ctx, self, value):
+def load_config(ctx, self, value):  # pylint: disable=unused-argument
     """Load `ctx.default_map` from a file.
 
     :param ctx: Click context
@@ -97,8 +113,8 @@ def load_config(ctx, self, value):
 
     if not path.exists(value):
         return {}
-    with open(value) as f:
-        ctx.default_map = yaml.safe_load(f)
+    with open(value, encoding="utf-8") as file:
+        ctx.default_map = yaml.safe_load(file)
     return ctx.default_map
 
 
@@ -110,26 +126,28 @@ def save_config(ctx, value):
     :return dict: Saveed config
     """
 
-    with open(value, "w") as f:
-        yaml.dump(ctx.default_map, f)
+    with open(value, "w", encoding="utf-8") as file:
+        yaml.dump(ctx.default_map, file)
     return ctx.default_map
 
 
-def query(ctx, q, **kwargs):
+def query(ctx, gql_doc, **kwargs):
     """Submit a GraphQL query to a database.
 
     :param ctx: Click context
-    :param q: str: GraphQL query submitted to a database. q takes either of q_solution_to_score, q_solutions_scored, q_start_scoring, q_finish_scoring, and q_cancel_scoring.
+    :param gql_doc: str: GraphQL query submitted to a database. gql_doc takes either of
+    Q_SOLUTION_TO_SCORE, Q_SOLUTIONS_SCORED, Q_START_SCORING, Q_FINISH_SCORING,
+    and Q_CANCEL_SCORING.
     :param kwargs: GraphQL variables
-    :return r: Results returned from a query (q). r depends on q.
-    """        
-    _logger.info("query(%s, %s)", q, kwargs)
+    :return response: Results returned from a query (gql_doc). response depends on gql_doc.
+    """
+    _logger.info("query(%s, %s)", gql_doc, kwargs)
     try:
-        r = ctx.obj["client"].execute(gql(q), variable_values=kwargs)
-    except Exception as e:
-        ctx.fail("Exception %s raised when executing query %s\n" % (e, q))
-    _logger.info("query -> %s", r)
-    return r
+        response = ctx.obj["client"].execute(gql(gql_doc), variable_values=kwargs)
+    except Exception as exc:
+        ctx.fail("Exception %s raised when executing query %s\n" % (exc, gql_doc))
+    _logger.info("query -> %s", response)
+    return response
 
 
 def wait_to_fetch(ctx, interval):
@@ -138,16 +156,16 @@ def wait_to_fetch(ctx, interval):
     :param ctx: Click context
     :param interval: int: Interval to access a database (second)
     :return solution_id: ID of a solution that has not been scored.
-    """        
+    """
     while True:
-        r = query(ctx, q_solution_to_score)  # Polling
-        if r["solutions"]:
+        response = query(ctx, Q_SOLUTION_TO_SCORE)  # Polling
+        if response["solutions"]:
             break  # solution found
         sleep(interval)
-    return r["solutions"][0]["id"]
+    return response["solutions"][0]["id"]
 
-# Check if an unscored solution exists in a database.
-q_solution_to_score = """
+
+Q_SOLUTION_TO_SCORE = """
 query solution_to_score {
   solutions(
     limit: 1
@@ -163,8 +181,7 @@ query solution_to_score {
 }
 """
 
-# Get multiple solutions that have been scored.
-q_solutions_scored = """
+Q_SOLUTIONS_SCORED = """
 query solutions_scored(
   $id: Int!
   $owner_id: String!
@@ -189,8 +206,7 @@ query solutions_scored(
 }
 """
 
-# Update scoring_started_at of a solution to be scored to the current time now().
-q_start_scoring = """
+Q_START_SCORING = """
 mutation start_scoring(
   $id: Int!
 ) {
@@ -222,8 +238,7 @@ mutation start_scoring(
 }
 """
 
-# Update evaluation_finished_ascoring_finished_at to the current time now(). Score values and information about errors are also updated.
-q_finish_scoring = """
+Q_FINISH_SCORING = """
 mutation finish_scoring(
   $id: Int!
   $score: jsonb
@@ -242,8 +257,7 @@ mutation finish_scoring(
 }
 """
 
-# Update scoring_started_at and scoring_finished_at to null when an error occurs in the scoring process. A solution with scoring_started_at=null and scoring_finished=null means that it has not been scored.
-q_cancel_scoring = """
+Q_CANCEL_SCORING = """
 mutation cancel_scoring(
   $id: Int!
 ) {
@@ -262,32 +276,64 @@ mutation cancel_scoring(
 
 
 @click.command(help="OptHub Scorer.")
-@click.option("-u", "--url", envvar="OPTHUB_URL", type=str,
-              default="https://opthub-api.herokuapp.com/v1/graphql",
-              help="URL to OptHub.")
-@click.option("-a", "--apikey", envvar="OPTHUB_APIKEY",
-              type=StrLength(max=64), help="ApiKey.")
-@click.option("-i", "--interval", envvar="OPTHUB_INTERVAL",
-              type=click.IntRange(min=1), default=2, help="Polling interval.")
-@click.option("--verify/--no-verify", envvar="OPTHUB_VERIFY",
-              default=True, help="Verify SSL certificate.")
-@click.option("-r", "--retries", envvar="OPTHUB_RETRIES",
-              type=click.IntRange(min=0), default=3,
-              help="Retries to establish HTTPS connection.")
-@click.option("-t", "--timeout", envvar="OPTHUB_TIMEOUT",
-              type=click.IntRange(min=0), default=600,
-              help="Timeout to process a query.")
-@click.option("--rm", envvar="OPTHUB_REMOVE",
-              is_flag=True,
-              help="Remove containers after exit.")
+@click.option(
+    "-u",
+    "--url",
+    envvar="OPTHUB_URL",
+    type=str,
+    default="https://opthub-api.herokuapp.com/v1/graphql",
+    help="URL to OptHub.",
+)
+@click.option(
+    "-a", "--apikey", envvar="OPTHUB_APIKEY", type=StrLength(max=64), help="ApiKey."
+)
+@click.option(
+    "-i",
+    "--interval",
+    envvar="OPTHUB_INTERVAL",
+    type=click.IntRange(min=1),
+    default=2,
+    help="Polling interval.",
+)
+@click.option(
+    "--verify/--no-verify",
+    envvar="OPTHUB_VERIFY",
+    default=True,
+    help="Verify SSL certificate.",
+)
+@click.option(
+    "-r",
+    "--retries",
+    envvar="OPTHUB_RETRIES",
+    type=click.IntRange(min=0),
+    default=3,
+    help="Retries to establish HTTPS connection.",
+)
+@click.option(
+    "-t",
+    "--timeout",
+    envvar="OPTHUB_TIMEOUT",
+    type=click.IntRange(min=0),
+    default=600,
+    help="Timeout to process a query.",
+)
+@click.option(
+    "--rm", envvar="OPTHUB_REMOVE", is_flag=True, help="Remove containers after exit."
+)
 @click.option("-q", "--quiet", count=True, help="Be quieter.")
 @click.option("-v", "--verbose", count=True, help="Be more verbose.")
-@click.option("-c", "--config", envvar="OPTHUB_SCORER_CONFIG",
-              type=click.Path(dir_okay=False), default="opthub-scorer.yml",
-              is_eager=True, callback=load_config, help="Configuration file.")
+@click.option(
+    "-c",
+    "--config",
+    envvar="OPTHUB_SCORER_CONFIG",
+    type=click.Path(dir_okay=False),
+    default="opthub-scorer.yml",
+    is_eager=True,
+    callback=load_config,
+    help="Configuration file.",
+)
 @click.version_option()
-@click.argument("command", envvar="OPTHUB_COMMAND",
-              type=str, nargs=-1)
+@click.argument("command", envvar="OPTHUB_COMMAND", type=str, nargs=-1)
 @click.pass_context
 def run(ctx, **kwargs):
     """The entrypoint of CLI.
@@ -325,9 +371,9 @@ def run(ctx, **kwargs):
             solution_id = wait_to_fetch(ctx, kwargs["interval"])
             _logger.debug(solution_id)
             _logger.info("...Found")
-        except Exception as e:
-            if type(e) is InterruptedError:
-                _logger.info(e)
+        except Exception as exc:
+            if isinstance(exc, InterruptedError):
+                _logger.info(exc)
                 _logger.info("Attempt graceful shutdown...")
                 _logger.info("No need to rollback")
                 _logger.info("...Shutted down")
@@ -338,62 +384,74 @@ def run(ctx, **kwargs):
 
         try:
             _logger.info("Try to lock solution...")
-            r = query(ctx, q_start_scoring, id=solution_id)
-            if r["update_solutions"]["affected_rows"] == 0:
+            response = query(ctx, Q_START_SCORING, id=solution_id)
+            if response["update_solutions"]["affected_rows"] == 0:
                 _logger.info("...Already locked")
                 continue
-            elif r["update_solutions"]["affected_rows"] != 1:
-                _logger.error("Lock error: affected_rows must be 0 or 1, but %s", r)
-            solution = r["update_solutions"]["returning"][0]
+            if response["update_solutions"]["affected_rows"] != 1:
+                _logger.error(
+                    "Lock error: affected_rows must be 0 or 1, but %s", response
+                )
+            solution = response["update_solutions"]["returning"][0]
             _logger.info("...Lock aquired")
 
             _logger.info("Parse solution to score...")
             _logger.debug(solution)
-            x = json.dumps(solution) + "\n"
-            _logger.debug(x)
+            sol = json.dumps(solution) + "\n"
+            _logger.debug(sol)
             _logger.info("...Parsed")
- 
+
             _logger.info("Pull solutions scored")
-            r = query(ctx, q_solutions_scored,
-                id=solution_id, owner_id=solution["owner_id"], match_id=solution["match_id"])
-            _logger.debug(r)
+            response = query(
+                ctx,
+                Q_SOLUTIONS_SCORED,
+                id=solution_id,
+                owner_id=solution["owner_id"],
+                match_id=solution["match_id"],
+            )
+            _logger.debug(response)
             _logger.info("...Pulled")
 
             _logger.info("Parse solutions scored...")
-            _logger.debug(r["solutions"])
-            xs = json.dumps(r["solutions"]) + "\n"
-            _logger.debug(xs)
+            _logger.debug(response["solutions"])
+            sols = json.dumps(response["solutions"]) + "\n"
+            _logger.debug(sols)
             _logger.info("...Parsed")
 
             _logger.info("Start container...")
             _logger.debug(solution["match"]["indicator"]["image"])
-            c = client.containers.run(
+            container = client.containers.run(
                 image=solution["match"]["indicator"]["image"],
                 command=kwargs["command"],
-                environment={v["key"]: v["value"]
-                    for v in solution["match"]["environments"]},
+                environment={
+                    v["key"]: v["value"] for v in solution["match"]["environments"]
+                },
                 stdin_open=True,
                 detach=True,
             )
-            _logger.info("...Started: %s", c.name)
- 
+            _logger.info("...Started: %s", container.name)
+
             _logger.info("Send solutions...")
-            s = c.attach_socket(params={"stdin": 1, "stream": 1, "stdout": 1, "stderr": 1})
-            s._sock.sendall((x + xs).encode("utf-8"))
+            socket = container.attach_socket(
+                params={"stdin": 1, "stream": 1, "stdout": 1, "stderr": 1}
+            )
+            socket._sock.sendall(
+                (sol + sols).encode("utf-8")
+            )  # pylint: disable=protected-access
             _logger.info("...Send")
 
             _logger.info("Wait for scoring...")
-            c.wait(timeout=kwargs["timeout"])
+            container.wait(timeout=kwargs["timeout"])
             _logger.info("...Scored")
 
             _logger.info("Recieve stdout...")
-            stdout = c.logs(stdout=True, stderr=False).decode("utf-8")
+            stdout = container.logs(stdout=True, stderr=False).decode("utf-8")
             _logger.debug(stdout)
             _logger.info("...Recived")
 
             if kwargs["rm"]:
                 _logger.info("Remove container...")
-                c.remove()
+                container.remove()
                 _logger.info("...Removed")
 
             _logger.info("Parse stdout...")
@@ -402,30 +460,36 @@ def run(ctx, **kwargs):
             _logger.info("...Parsed")
 
             _logger.info("Push scoring...")
-            query(ctx,
-                q_finish_scoring,
+            query(
+                ctx,
+                Q_FINISH_SCORING,
                 id=solution["id"],
                 score=stdout.get("score"),
-                error=stdout.get("error"))
+                error=stdout.get("error"),
+            )
             _logger.info("...Pushed")
-        except Exception as e:
-            if type(e) is InterruptedError:
-                _logger.info(e)
+        except Exception as exc:
+            if isinstance(exc, InterruptedError):
+                _logger.info(exc)
                 _logger.info("Attempt graceful shutdown...")
                 _logger.info("Rollback scoring...")
-                query(ctx, q_cancel_scoring, id=solution["id"])
+                query(ctx, Q_CANCEL_SCORING, id=solution["id"])
                 _logger.info("...Rolled back")
                 _logger.info("...Shutted down")
                 ctx.exit(0)
             _logger.error(format_exc())
             _logger.info("Finish scoring...")
-            query(ctx, q_finish_scoring,
+            query(
+                ctx,
+                Q_FINISH_SCORING,
                 id=solution["id"],
                 score=None,
-                error=str(e),
+                error=str(exc),
             )
             _logger.info("...Finished")
             continue
 
         n_solution += 1
-        _logger.info("==================== Solution: %d ====================", n_solution)
+        _logger.info(
+            "==================== Solution: %d ====================", n_solution
+        )
