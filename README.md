@@ -2,7 +2,7 @@
 OptHub Scorer is a worker program that scores a solution submitted to OptHub.
 
 ## Requirements
-- Python 2.7 or 3.5+
+- Python >=3.6, <3.12
 - Docker 1.12+
 
 See also [requirements.txt](requirements.txt) for dependent python packages.
