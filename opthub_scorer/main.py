@@ -200,6 +200,7 @@ query solutions_scored(
     objective
     constraint
     score
+    info
   }
 }
 """
@@ -231,6 +232,7 @@ mutation start_scoring(
       }
       objective
       constraint
+      info
     }
   }
 }
