@@ -51,9 +51,4 @@
     Contact: hmkz@s101.xrea.com
 """
 
-
-from __future__ import absolute_import
-
-__version__ = "0.4.0"
-
-import opthub_scorer.main
+__version__ = "0.5.0"

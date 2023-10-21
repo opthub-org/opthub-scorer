@@ -273,6 +273,14 @@ mutation cancel_scoring(
 """
 
 
+def parse_stdout(stdout: str):
+    lines = stdout.split("\n")
+    lines.reverse()
+    for line in lines:
+        if line:
+            return json.loads(line)
+
+
 @click.command(help="OptHub Scorer.")
 @click.option(
     "-u",
@@ -453,8 +461,8 @@ def run(ctx, **kwargs):
                 _logger.info("...Removed")
 
             _logger.info("Parse stdout...")
-            stdout = json.loads(stdout)
-            _logger.debug(stdout)
+            out = parse_stdout(stdout)
+            _logger.debug(out)
             _logger.info("...Parsed")
 
             _logger.info("Push scoring...")
@@ -462,8 +470,8 @@ def run(ctx, **kwargs):
                 ctx,
                 Q_FINISH_SCORING,
                 id=solution["id"],
-                score=stdout.get("score"),
-                error=stdout.get("error"),
+                score=out.get("score"),
+                error=out.get("error"),
             )
             _logger.info("...Pushed")
         except Exception as exc:
