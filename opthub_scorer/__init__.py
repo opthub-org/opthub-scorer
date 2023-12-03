@@ -51,4 +51,4 @@
     Contact: hmkz@s101.xrea.com
 """
 
-__version__ = "0.6.0"
+__version__ = "0.6.1"

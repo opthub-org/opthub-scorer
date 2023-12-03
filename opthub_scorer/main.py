@@ -3,6 +3,8 @@ Definition of CLI commands.
 """
 import json
 import logging
+import math
+import sys
 from os import path
 from time import sleep
 from traceback import format_exc
@@ -127,6 +129,30 @@ def save_config(ctx, value):
     with open(value, "w", encoding="utf-8") as file:
         yaml.dump(ctx.default_map, file)
     return ctx.default_map
+
+
+def to_json_float(value):
+    """Convert a value to JSON float.
+
+    :param value: Value to convert
+    :return value: Converted value
+    """
+    if isinstance(value, list):
+        return [to_json_float(v) for v in value]
+    if isinstance(value, dict):
+        return {k: to_json_float(v) for k, v in value.items()}
+    if not isinstance(value, float):
+        return value
+    if value == math.inf:
+        _logger.warning("math.inf is converted to sys.float_info.max")
+        return sys.float_info.max
+    if value == -math.inf:
+        _logger.warning("-math.inf is converted to -sys.float_info.max")
+        return -sys.float_info.max
+    if math.isnan(value):
+        _logger.warning("math.nan is converted to None")
+        return None
+    return value
 
 
 def query(ctx, gql_doc, **kwargs):
@@ -472,7 +498,7 @@ def run(ctx, **kwargs):
                 ctx,
                 Q_FINISH_SCORING,
                 id=solution["id"],
-                score=out.get("score"),
+                score=to_json_float(out.get("score")),
                 error=out.get("error"),
             )
             _logger.info("...Pushed")
