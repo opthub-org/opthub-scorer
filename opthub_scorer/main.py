@@ -429,7 +429,7 @@ def run(ctx, **kwargs):
             _logger.debug(solution_id)
             _logger.info("...Found")
         except Exception as exc:
-            if isinstance(exc, InterruptedError):
+            if isinstance(exc, KeyboardInterrupt):
                 _logger.info(exc)
                 _logger.info("Attempt graceful shutdown...")
                 _logger.info("No need to rollback")
@@ -532,7 +532,7 @@ def run(ctx, **kwargs):
             )
 
         except Exception as exc:
-            if isinstance(exc, InterruptedError):
+            if isinstance(exc, KeyboardInterrupt):
                 _logger.info(exc)
                 _logger.info("Attempt graceful shutdown...")
                 _logger.info("Rollback scoring...")
