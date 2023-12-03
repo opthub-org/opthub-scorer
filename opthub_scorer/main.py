@@ -1,15 +1,15 @@
 """
 Definition of CLI commands.
 """
-from collections import defaultdict
 import json
 import logging
 import math
 import sys
+from collections import defaultdict
 from os import path
 from time import sleep, time
 from traceback import format_exc
-from typing import Tuple
+from typing import DefaultDict, Tuple
 
 import click
 import docker
@@ -176,7 +176,7 @@ def query(ctx, gql_doc, **kwargs):
     return response
 
 
-cpu_usages: defaultdict[Tuple[int, str], float] = defaultdict(float)
+cpu_usages: DefaultDict[Tuple[int, str], float] = defaultdict(float)
 """(match_id, owner_id) -> cpu_usage"""
 
 
