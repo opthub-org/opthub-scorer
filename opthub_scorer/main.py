@@ -1,13 +1,15 @@
 """
 Definition of CLI commands.
 """
+from collections import defaultdict
 import json
 import logging
 import math
 import sys
 from os import path
-from time import sleep
+from time import sleep, time
 from traceback import format_exc
+from typing import Tuple
 
 import click
 import docker
@@ -174,6 +176,10 @@ def query(ctx, gql_doc, **kwargs):
     return response
 
 
+cpu_usages: defaultdict[Tuple[int, str], float] = defaultdict(float)
+"""(match_id, owner_id) -> cpu_usage"""
+
+
 def wait_to_fetch(ctx, interval):
     """Check if an unscored solution exists in a database by calling query every "interval" seconds.
 
@@ -186,14 +192,21 @@ def wait_to_fetch(ctx, interval):
         if response["solutions"]:
             break  # solution found
         sleep(interval)
+    _logger.debug(cpu_usages)
+
+    # least cpu_usage first
+    response["solutions"].sort(
+        key=lambda key: cpu_usages[(key["match_id"], key["owner_id"])]
+    )
+    _logger.debug(response["solutions"])
     return response["solutions"][0]["id"]
 
 
 Q_SOLUTION_TO_SCORE = """
 query solution_to_score {
   solutions(
-    limit: 1
-    order_by: { id: asc }
+    distinct_on: [ match_id, owner_id ]
+    order_by: [ { match_id: asc }, { owner_id: asc }, { id: asc }]
     where: {
       evaluation_finished_at: { _is_null: false }
       evaluation_error: { _is_null: true }
@@ -201,6 +214,8 @@ query solution_to_score {
     }
   ) {
     id
+    match_id
+    owner_id
   }
 }
 """
@@ -428,6 +443,7 @@ def run(ctx, **kwargs):
                 )
             solution = response["update_solutions"]["returning"][0]
             _logger.info("...Lock aquired")
+            start_time = time()
 
             _logger.info("Parse solution to score...")
             _logger.debug(solution)
@@ -502,6 +518,11 @@ def run(ctx, **kwargs):
                 error=out.get("error"),
             )
             _logger.info("...Pushed")
+            end_time = time()
+            cpu_usages[(solution["match_id"], solution["owner_id"])] += (
+                end_time - start_time
+            )
+
         except Exception as exc:
             if isinstance(exc, InterruptedError):
                 _logger.info(exc)
