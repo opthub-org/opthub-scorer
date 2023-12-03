@@ -189,33 +189,37 @@ def wait_to_fetch(ctx, interval):
     """
     while True:
         response = query(ctx, Q_SOLUTION_TO_SCORE)  # Polling
-        if response["solutions"]:
+        solutions = [
+            s for s in response["solutions"] if s["evaluation_finished_at"] is not None
+        ]
+        if solutions:
             break  # solution found
         sleep(interval)
     _logger.debug(cpu_usages)
 
     # least cpu_usage first
-    response["solutions"].sort(
-        key=lambda key: cpu_usages[(key["match_id"], key["owner_id"])]
+    solutions.sort(
+        key=lambda solution: cpu_usages[(solution["match_id"], solution["owner_id"])]
     )
-    _logger.debug(response["solutions"])
-    return response["solutions"][0]["id"]
+    _logger.debug(solutions)
+    return solutions[0]["id"]
 
 
+# the first unscored valid solutions for each (match_id, owner_id)
 Q_SOLUTION_TO_SCORE = """
 query solution_to_score {
   solutions(
     distinct_on: [ match_id, owner_id ]
     order_by: [ { match_id: asc }, { owner_id: asc }, { id: asc } ]
     where: {
-      evaluation_finished_at: { _is_null: false }
-      evaluation_error: { _is_null: true }
-      scoring_started_at: { _is_null: true }
+      { evaluation_error: { is_null: true }}
+      { scoring_started_at: { is_null: true }}
     }
   ) {
     id
     match_id
     owner_id
+    evaluation_finished_at
   }
 }
 """
