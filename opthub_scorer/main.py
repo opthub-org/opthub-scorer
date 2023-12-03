@@ -4,6 +4,7 @@ Definition of CLI commands.
 import json
 import logging
 import math
+import signal
 import sys
 from collections import defaultdict
 from os import path
@@ -332,6 +333,13 @@ def parse_stdout(stdout: str):
             return json.loads(line)
 
 
+def signal_handler(signum, frame):
+    raise KeyboardInterrupt
+
+
+signal.signal(signal.SIGTERM, signal_handler)
+
+
 @click.command(help="OptHub Scorer.")
 @click.option(
     "-u",
@@ -429,10 +437,14 @@ def run(ctx, **kwargs):
             _logger.debug(solution_id)
             _logger.info("...Found")
         except KeyboardInterrupt:
+            signal.signal(signal.SIGTERM, signal.SIG_IGN)
+            signal.signal(signal.SIGINT, signal.SIG_IGN)
             _logger.warning(format_exc())
             _logger.warning("Attempt graceful shutdown...")
             _logger.warning("No need to rollback")
             _logger.warning("...Shutted down")
+            signal.signal(signal.SIGTERM, signal.SIG_DFL)
+            signal.signal(signal.SIGINT, signal.SIG_DFL)
             ctx.exit(0)
         except Exception:
             _logger.error(format_exc())
@@ -531,12 +543,16 @@ def run(ctx, **kwargs):
             )
 
         except KeyboardInterrupt:
+            signal.signal(signal.SIGTERM, signal.SIG_IGN)
+            signal.signal(signal.SIGINT, signal.SIG_IGN)
             _logger.warning(format_exc())
             _logger.warning("Attempt graceful shutdown...")
             _logger.warning("Rollback scoring...")
             query(ctx, Q_CANCEL_SCORING, id=solution["id"])
             _logger.warning("...Rolled back")
             _logger.warning("...Shutted down")
+            signal.signal(signal.SIGTERM, signal.SIG_DFL)
+            signal.signal(signal.SIGINT, signal.SIG_DFL)
             ctx.exit(0)
         except Exception as exc:
             _logger.error(format_exc())
