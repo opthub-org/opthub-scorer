@@ -428,16 +428,15 @@ def run(ctx, **kwargs):
             solution_id = wait_to_fetch(ctx, kwargs["interval"])
             _logger.debug(solution_id)
             _logger.info("...Found")
-        except Exception as exc:
-            if isinstance(exc, KeyboardInterrupt):
-                _logger.info(exc)
-                _logger.info("Attempt graceful shutdown...")
-                _logger.info("No need to rollback")
-                _logger.info("...Shutted down")
-                ctx.exit(0)
-            else:
-                _logger.error(format_exc())
-                continue
+        except KeyboardInterrupt:
+            _logger.warning(format_exc())
+            _logger.warning("Attempt graceful shutdown...")
+            _logger.warning("No need to rollback")
+            _logger.warning("...Shutted down")
+            ctx.exit(0)
+        except Exception:
+            _logger.error(format_exc())
+            continue
 
         try:
             _logger.info("Try to lock solution...")
@@ -531,15 +530,15 @@ def run(ctx, **kwargs):
                 end_time - start_time
             )
 
+        except KeyboardInterrupt:
+            _logger.warning(format_exc())
+            _logger.warning("Attempt graceful shutdown...")
+            _logger.warning("Rollback scoring...")
+            query(ctx, Q_CANCEL_SCORING, id=solution["id"])
+            _logger.warning("...Rolled back")
+            _logger.warning("...Shutted down")
+            ctx.exit(0)
         except Exception as exc:
-            if isinstance(exc, KeyboardInterrupt):
-                _logger.info(exc)
-                _logger.info("Attempt graceful shutdown...")
-                _logger.info("Rollback scoring...")
-                query(ctx, Q_CANCEL_SCORING, id=solution["id"])
-                _logger.info("...Rolled back")
-                _logger.info("...Shutted down")
-                ctx.exit(0)
             _logger.error(format_exc())
             _logger.info("Finish scoring...")
             query(
