@@ -212,8 +212,8 @@ query solution_to_score {
     distinct_on: [ match_id, owner_id ]
     order_by: [ { match_id: asc }, { owner_id: asc }, { id: asc } ]
     where: {
-      evaluation_error: { is_null: true }
-      scoring_started_at: { is_null: true }
+      evaluation_error: { _is_null: true }
+      scoring_started_at: { _is_null: true }
     }
   ) {
     id
