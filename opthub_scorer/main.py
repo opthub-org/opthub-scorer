@@ -206,7 +206,7 @@ Q_SOLUTION_TO_SCORE = """
 query solution_to_score {
   solutions(
     distinct_on: [ match_id, owner_id ]
-    order_by: [ { match_id: asc }, { owner_id: asc }, { id: asc }]
+    order_by: [ { match_id: asc }, { owner_id: asc }, { id: asc } ]
     where: {
       evaluation_finished_at: { _is_null: false }
       evaluation_error: { _is_null: true }
