@@ -408,7 +408,10 @@ def run(ctx, **kwargs):
     """
     verbosity = 10 * (kwargs["quiet"] - kwargs["verbose"])
     log_level = logging.WARNING + verbosity
-    logging.basicConfig(level=log_level)
+    logging.basicConfig(
+        level=log_level,
+        format="%(asctime)s %(levelname)s %(filename)s:%(lineno)d %(message)s",
+    )
     _logger.info("Log level is set to %d", log_level)
     _logger.info("run(%s)", kwargs)
     transport = RequestsHTTPTransport(
